@@ -10,7 +10,7 @@ async function callGeminiAPI(promptText) {
 
   // URL CAMBIADA A v1beta y modelo 'gemini-1.5-flash'
   // Esta es la combinación más estable actualmente
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+const url = `https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
   
   const response = await fetch(url, {
     method: "POST",
