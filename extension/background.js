@@ -3,6 +3,16 @@
 const STORAGE_KEYS = { API_KEY: "ges_api_key", HISTORY: "ges_history" };
 
 async function callGeminiAPI(promptText) {
+  // Dentro de la función callGeminiAPI en background.js
+const response = await fetch(url, {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    contents: [{
+      parts: [{ text: promptText }] // Verifica que promptText no llegue vacío
+    }]
+  })
+});
   const data = await chrome.storage.sync.get(STORAGE_KEYS.API_KEY);
   const apiKey = data[STORAGE_KEYS.API_KEY];
   

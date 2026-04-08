@@ -83,9 +83,27 @@ function setupEvents() {
 }
 
 async function runAction(auto) {
-  chrome.runtime.sendMessage({ type: "GES_AI_REQUEST", prompt: auto.prompt, action: auto.name }, (res) => {
-    if(res.error) alert("Error: " + res.error);
-    else alert("Resultado: " + res.text.substring(0, 100) + "...");
+  // 1. Obtener la pestaña activa
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+
+  // 2. Pedirle al content.js el texto de la página
+  chrome.tabs.sendMessage(tab.id, { type: "GES_GET_CONTEXT" }, (response) => {
+    if (response && response.context) {
+      const pageText = response.context.data.pageText || response.context.data.pageContent || "";
+      const fullPrompt = `${auto.prompt}\n\nCONTENIDO DE LA PÁGINA:\n${pageText}`;
+
+      // 3. Ahora sí, enviar todo al background (IA)
+      chrome.runtime.sendMessage({ 
+        type: "GES_AI_REQUEST", 
+        prompt: fullPrompt, 
+        action: auto.name 
+      }, (res) => {
+        if(res.error) alert("Error: " + res.error);
+        else alert("Resultado: " + res.text);
+      });
+    } else {
+      alert("No se pudo extraer texto de esta página.");
+    }
   });
 }
 
