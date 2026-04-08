@@ -1,67 +1,62 @@
 <!DOCTYPE html>
-<html lang="es">
+<html>
 <head>
   <meta charset="UTF-8">
   <style>
-    :root { --purple: #534AB7; --purple-light: #EEEDFE; --text: #1a1a1a; --gray: #f4f4f4; }
-    body { width: 340px; min-height: 450px; font-family: sans-serif; margin: 0; color: var(--text); background: white; }
-    
-    /* NAV & TABS */
-    .tabs { display: flex; background: #fff; border-bottom: 1px solid #ddd; position: sticky; top: 0; }
-    .tab { flex: 1; padding: 12px; text-align: center; cursor: pointer; font-size: 11px; font-weight: bold; color: #666; transition: 0.2s; }
+    :root { --purple: #534AB7; --purple-light: #EEEDFE; --gray: #f5f5f5; }
+    body { width: 340px; min-height: 480px; font-family: sans-serif; margin: 0; background: white; }
+    .tabs { display: flex; border-bottom: 1px solid #ddd; background: #fff; position: sticky; top: 0; z-index: 10; }
+    .tab { flex: 1; padding: 12px; text-align: center; cursor: pointer; font-size: 11px; font-weight: bold; color: #666; }
     .tab.active { color: var(--purple); border-bottom: 3px solid var(--purple); background: var(--purple-light); }
-
-    /* PANELS */
     .panel { display: none; padding: 15px; }
     .panel.active { display: block; }
-
-    /* ELEMENTS */
-    .auto-item { display: flex; align-items: center; gap: 10px; padding: 10px; border: 1px solid #eee; margin-bottom: 8px; border-radius: 10px; background: #fff; }
-    .auto-item:hover { border-color: var(--purple); }
-    .ges-input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 12px; }
-    .btn { background: var(--purple); color: white; border: none; padding: 10px; border-radius: 8px; cursor: pointer; font-weight: bold; }
-    
-    /* CHAT & HISTORY */
-    #chat-box { height: 220px; overflow-y: auto; background: var(--gray); padding: 10px; border-radius: 10px; margin-bottom: 10px; font-size: 12px; border: 1px solid #eee; }
-    .hist-item { font-size: 11px; border-bottom: 1px solid #eee; padding: 8px 0; }
-    .fav-btn { cursor: pointer; border: none; background: none; font-size: 18px; }
+    .auto-item { display: flex; align-items: center; gap: 10px; padding: 10px; border: 1px solid #eee; margin-bottom: 8px; border-radius: 10px; }
+    .ges-input { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; margin-bottom: 10px; }
+    .btn { background: var(--purple); color: white; border: none; padding: 10px; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%; }
+    #chat-box { height: 180px; overflow-y: auto; background: var(--gray); padding: 10px; border-radius: 10px; margin-bottom: 10px; font-size: 11px; }
+    .fav-btn { cursor: pointer; border: none; background: none; font-size: 16px; }
+    .delete-btn { color: red; cursor: pointer; font-size: 10px; margin-left: auto; border: none; background: none; }
   </style>
 </head>
 <body>
 
   <div class="tabs">
     <div class="tab active" data-tab="home">HOME</div>
+    <div class="tab" data-tab="create">➕</div>
     <div class="tab" data-tab="chat">CHAT</div>
-    <div class="tab" data-tab="history">HISTORIAL</div>
+    <div class="tab" data-tab="history">HIST.</div>
     <div class="tab" data-tab="settings">⚙</div>
   </div>
 
-  <!-- HOME: FAVORITOS Y ACCIONES -->
   <div class="panel active" id="panel-home">
-    <div id="auto-list">Cargando acciones...</div>
+    <div id="auto-list">Cargando...</div>
   </div>
 
-  <!-- CHAT IA -->
+  <!-- NUEVO PANEL PARA CREAR ACCIONES -->
+  <div class="panel" id="panel-create">
+    <h3 style="font-size:14px; margin-bottom:10px;">Crear Nueva Acción</h3>
+    <input type="text" id="new-name" class="ges-input" placeholder="Nombre (Ej: Corregir Texto)">
+    <input type="text" id="new-emoji" class="ges-input" placeholder="Emoji (Ej: ✍️)">
+    <textarea id="new-prompt" class="ges-input" style="height:60px;" placeholder="¿Qué debe hacer la IA? (Ej: Corrige las faltas de ortografía de este texto)"></textarea>
+    <button id="btn-save-action" class="btn">Guardar Acción</button>
+  </div>
+
   <div class="panel" id="panel-chat">
-    <div id="chat-box">¡Hola! Pregúntame lo que quieras.</div>
+    <div id="chat-box">¡Hola! ¿En qué te ayudo?</div>
     <div style="display:flex; gap:5px;">
-      <input type="text" id="chat-input" class="ges-input" placeholder="Escribe aquí...">
-      <button id="btn-send-chat" class="btn">🚀</button>
+      <input type="text" id="chat-input" class="ges-input" placeholder="Pregunta algo...">
+      <button id="btn-send-chat" class="btn" style="width:50px;">🚀</button>
     </div>
   </div>
 
-  <!-- HISTORIAL -->
   <div class="panel" id="panel-history">
-    <div style="font-size:12px; font-weight:bold; margin-bottom:10px;">Acciones Recientes</div>
     <div id="history-list"></div>
   </div>
 
-  <!-- AJUSTES -->
   <div class="panel" id="panel-settings">
-    <label style="font-size:11px; font-weight:bold; margin-bottom:5px; display:block;">GOOGLE GEMINI API KEY</label>
-    <input type="password" id="api-key-input" class="ges-input" placeholder="Pega tu clave de AI Studio">
-    <button id="btn-save-key" class="btn" style="width:100%; margin-top:10px;">Guardar Configuración</button>
-    <p style="font-size:10px; margin-top:10px;">Obtén tu clave gratis en <a href="https://aistudio.google.com/" target="_blank">Google AI Studio</a></p>
+    <label style="font-size:11px; font-weight:bold;">GEMINI API KEY (v1)</label>
+    <input type="password" id="api-key-input" class="ges-input" placeholder="Pega tu clave aquí...">
+    <button id="btn-save-key" class="btn">Guardar Clave</button>
   </div>
 
   <script src="popup.js"></script>
