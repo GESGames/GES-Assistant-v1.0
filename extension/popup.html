@@ -1,149 +1,250 @@
-"use strict";
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GES Assistant</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-// ─────────────────────────────────────────────
-//  AUTOMATIZACIONES POR DEFECTO
-// ─────────────────────────────────────────────
-const DEFAULT_AUTOMATIONS = [
-  { id: "auto_1", name: "Resumir página",    emoji: "📄", bg: "#E1F5EE", action: "summarize_page", sites: ["Genérico"],    active: true,  pro: false, runs: 0 },
-  { id: "auto_2", name: "Responder emails",    emoji: "📧", bg: "#EEEDFE", action: "reply_email",    sites: ["Gmail"],    active: true,  pro: false, runs: 0 },
-  { id: "auto_3", name: "Posts en LinkedIn",   emoji: "🐦", bg: "#FAEEDA", action: "generate_post",  sites: ["LinkedIn"], active: false, pro: true,  runs: 0 },
-];
-
-let state = {
-  plan: "free",
-  used: 0,
-  limit: 5,
-  automations: [],
-  settings: { notifs: true, allpages: true, silent: false },
-};
-
-// ─────────────────────────────────────────────
-//  INICIALIZACIÓN
-// ─────────────────────────────────────────────
-document.addEventListener("DOMContentLoaded", async () => {
-  setupTabs();
-  setupToggles();
-  setupButtons();
-  await loadState();
-  renderDashboard();
-  renderPlanCards();
-  loadSettings();
-});
-
-async function loadState() {
-  return new Promise((resolve) => {
-    chrome.runtime.sendMessage({ type: "GES_GET_STATUS" }, (response) => {
-      if (chrome.runtime.lastError || !response) {
-        state.automations = DEFAULT_AUTOMATIONS;
-        resolve();
-        return;
-      }
-      state.plan = response.plan ?? "free";
-      state.used = response.used ?? 0;
-      state.limit = response.limit ?? 5;
-      state.automations = response.automations?.length ? response.automations : DEFAULT_AUTOMATIONS;
-      resolve();
-    });
-  });
-}
-
-// ── RENDERIZADO ──
-function renderDashboard() {
-  document.getElementById("loading-block").style.display = "none";
-  document.getElementById("dashboard-content").style.display = "block";
-  const isPro = state.plan !== "free";
-  document.getElementById("stat-used").textContent = state.used;
-  document.getElementById("stat-limit").textContent = isPro ? "∞" : state.limit;
-  document.getElementById("limit-text").textContent = isPro ? `${state.used} / ∞` : `${state.used} / ${state.limit}`;
-  const bar = document.getElementById("limit-bar");
-  const pct = isPro ? 0 : Math.min(100, Math.round((state.used / state.limit) * 100));
-  bar.style.width = `${pct}%`;
-  renderAutomations();
-}
-
-function renderAutomations() {
-  const list = document.getElementById("auto-list");
-  list.innerHTML = "";
-  state.automations.forEach((auto) => {
-    const item = document.createElement("div");
-    item.className = "auto-item";
-    item.innerHTML = `
-      <div class="auto-emoji" style="background:${auto.bg}">${auto.emoji}</div>
-      <div class="auto-info">
-        <div class="auto-name">${auto.name}</div>
-        <div class="auto-sub">${auto.runs} ejecuciones</div>
-      </div>
-      <button class="run-btn" data-id="${auto.id}">▶</button>
-    `;
-    item.querySelector(".run-btn").addEventListener("click", () => runAutomation(auto));
-    list.appendChild(item);
-  });
-}
-
-async function runAutomation(auto) {
-  showToast(`⚡ Ejecutando "${auto.name}"...`, "warn");
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  chrome.tabs.sendMessage(tab.id, { type: "GES_RUN_AUTOMATION", automation: auto.action }, (res) => {
-    if (res?.success) {
-      auto.runs++;
-      state.used++;
-      renderDashboard();
-      showToast("✅ Completado", "success");
-    } else {
-      showToast("❌ Error: " + (res?.error || "Falla de conexión"), "error");
+    :root {
+      --purple:      #534AB7;
+      --purple-light:#EEEDFE;
+      --purple-mid:  #AFA9EC;
+      --green:       #1D9E75;
+      --green-light: #E1F5EE;
+      --amber:       #BA7517;
+      --amber-light: #FAEEDA;
+      --red:         #A32D2D;
+      --red-light:   #FCEBEB;
+      --gray-bg:     #F7F7F5;
+      --gray-border: rgba(0,0,0,0.1);
+      --text:        #1a1a1a;
+      --text-muted:  #6b6b6b;
+      --white:       #ffffff;
+      --radius:      10px;
+      --radius-sm:   6px;
     }
-  });
-}
 
-// ─────────────────────────────────────────────
-//  BOTONES (Aquí está el cambio de la API KEY)
-// ─────────────────────────────────────────────
-function setupButtons() {
-  // GUARDAR API KEY (CORREGIDO PARA GOOGLE GEMINI)
-  document.getElementById("btn-save-key")?.addEventListener("click", () => {
-    const key = document.getElementById("api-key-input").value.trim();
+    body {
+      width: 340px;
+      min-height: 480px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 13px;
+      color: var(--text);
+      background: var(--white);
+      overflow-x: hidden;
+    }
+
+    /* NAV */
+    .nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 14px 10px;
+      border-bottom: 0.5px solid var(--gray-border);
+    }
+    .nav-logo {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-weight: 600;
+      font-size: 14px;
+    }
+    .nav-logo-icon {
+      width: 26px; height: 26px;
+      background: var(--purple);
+      border-radius: 7px;
+      display: flex; align-items: center; justify-content: center;
+      color: #fff; font-size: 12px; font-weight: 700;
+    }
+    .nav-actions { display: flex; gap: 6px; }
+    .icon-btn {
+      width: 28px; height: 28px;
+      border: 0.5px solid var(--gray-border);
+      border-radius: var(--radius-sm);
+      background: transparent;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px;
+    }
+    .icon-btn:hover { background: var(--gray-bg); }
+
+    /* TABS */
+    .tabs {
+      display: flex;
+      border-bottom: 0.5px solid var(--gray-border);
+      padding: 0 14px;
+    }
+    .tab {
+      flex: 1; padding: 10px 4px;
+      text-align: center;
+      font-size: 12px;
+      color: var(--text-muted);
+      cursor: pointer;
+      border: none;
+      background: none;
+      border-bottom: 2px solid transparent;
+    }
+    .tab.active { color: var(--purple); border-bottom-color: var(--purple); font-weight: 600; }
+
+    /* PANELS */
+    .panel { display: none; padding: 14px; }
+    .panel.active { display: block; }
+
+    /* STATS */
+    .stats-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    .stat {
+      background: var(--gray-bg);
+      border-radius: var(--radius-sm);
+      padding: 10px 8px;
+      text-align: center;
+    }
+    .stat-val { font-size: 18px; font-weight: 700; color: var(--purple); }
+    .stat-lbl { font-size: 9px; color: var(--text-muted); text-transform: uppercase; margin-top: 2px; }
+
+    /* PROGRESS BAR */
+    .limit-block { margin-bottom: 15px; }
+    .limit-row { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 5px; }
+    .bar-bg { height: 6px; background: var(--gray-border); border-radius: 10px; overflow: hidden; }
+    .bar-fill { height: 100%; background: var(--purple); transition: width 0.3s; }
+    .bar-fill.warn { background: var(--amber); }
+    .bar-fill.full { background: var(--red); }
+
+    /* AUTO LIST */
+    .auto-list { display: flex; flex-direction: column; gap: 8px; }
+    .auto-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px; border: 1px solid var(--gray-border);
+      border-radius: var(--radius); background: #fff;
+    }
+    .auto-emoji {
+      width: 32px; height: 32px; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center; font-size: 16px;
+    }
+    .auto-info { flex: 1; }
+    .auto-name { font-size: 12px; font-weight: 600; }
+    .auto-sub { font-size: 10px; color: var(--text-muted); }
     
-    if (key.length < 10) {
-      showToast("⚠️ La clave es demasiado corta", "warn");
-      return;
+    .badge { font-size: 9px; padding: 2px 6px; border-radius: 10px; font-weight: 600; }
+    .badge-active { background: var(--green-light); color: var(--green); }
+    .badge-pro { background: var(--purple-light); color: var(--purple); }
+
+    .run-btn {
+      width: 28px; height: 28px; border-radius: 6px; border: none;
+      background: var(--purple); color: white; cursor: pointer;
     }
 
-    // Enviamos la clave al background (sin importar si empieza por sk- o no)
-    chrome.runtime.sendMessage({ type: "GES_SET_API_KEY", apiKey: key }, (response) => {
-      showToast("✅ API Key de Google guardada", "success");
-      document.getElementById("api-key-input").value = "";
-    });
-  });
+    /* TOAST */
+    .toast-inline {
+      padding: 8px; border-radius: 6px; font-size: 11px; margin-bottom: 10px; text-align: center;
+    }
+    .toast-success { background: var(--green-light); color: var(--green); }
+    .toast-warn { background: var(--amber-light); color: var(--amber); }
+    .toast-error { background: var(--red-light); color: var(--red); }
 
-  // Link a Google AI Studio
-  document.getElementById("link-google")?.addEventListener("click", () => {
-    chrome.tabs.create({ url: "https://aistudio.google.com/" });
-  });
+    /* INPUTS */
+    .settings-group { margin-bottom: 15px; }
+    .settings-label { font-size: 11px; font-weight: 700; margin-bottom: 6px; display: block; }
+    .input-row { display: flex; gap: 5px; }
+    .ges-input {
+      flex: 1; padding: 8px; border: 1px solid var(--gray-border); border-radius: 6px; outline: none;
+    }
+    .save-btn {
+      padding: 0 12px; background: var(--purple); color: white; border: none; border-radius: 6px; cursor: pointer;
+    }
 
-  // Otros botones
-  document.getElementById("btn-refresh")?.addEventListener("click", () => location.reload());
-  document.getElementById("btn-settings-shortcut")?.addEventListener("click", () => switchTab("settings"));
-  document.getElementById("btn-upgrade")?.addEventListener("click", () => switchTab("plans"));
-}
+    /* PLAN CARDS */
+    .plan-card {
+      border: 1px solid var(--gray-border); padding: 12px; border-radius: 10px; margin-bottom: 8px; cursor: pointer;
+    }
+    .plan-card.current { border: 2px solid var(--purple); background: var(--purple-light); }
+    .plan-name { font-weight: 700; display: block; }
+    .plan-price { font-size: 11px; color: var(--text-muted); }
 
-// ── UTILIDADES ──
-function setupTabs() {
-  document.querySelectorAll(".tab").forEach(tab => {
-    tab.addEventListener("click", () => switchTab(tab.dataset.tab));
-  });
-}
+    #loading-block { text-align: center; padding: 40px 0; color: var(--text-muted); }
+  </style>
+</head>
+<body>
 
-function switchTab(name) {
-  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.tab === name));
-  document.querySelectorAll(".panel").forEach(p => p.classList.toggle("active", p.id === `panel-${name}`));
-}
+  <!-- NAV -->
+  <div class="nav">
+    <div class="nav-logo">
+      <div class="nav-logo-icon">G</div>
+      GES Assistant
+    </div>
+    <div class="nav-actions">
+      <button class="icon-btn" id="btn-refresh">↻</button>
+      <button class="icon-btn" id="btn-settings-shortcut">⚙</button>
+    </div>
+  </div>
 
-function showToast(text, type) {
-  const area = document.getElementById("toast-area");
-  area.innerHTML = `<div class="toast-inline toast-${type}">${text}</div>`;
-  setTimeout(() => area.innerHTML = "", 4000);
-}
+  <!-- TABS -->
+  <div class="tabs">
+    <div class="tab active" data-tab="dashboard">Dashboard</div>
+    <div class="tab" data-tab="plans">Planes</div>
+    <div class="tab" data-tab="settings">Ajustes</div>
+  </div>
 
-function setupToggles() {} 
-function renderPlanCards() {}
-function loadSettings() {}
+  <!-- PANEL: DASHBOARD -->
+  <div class="panel active" id="panel-dashboard">
+    <div id="loading-block">Cargando...</div>
+    
+    <div id="dashboard-content" style="display:none">
+      <div class="stats-row">
+        <div class="stat"><div class="stat-val" id="stat-used">0</div><div class="stat-lbl">Usadas</div></div>
+        <div class="stat"><div class="stat-val" id="stat-limit">5</div><div class="stat-lbl">Límite</div></div>
+        <div class="stat"><div class="stat-val" id="stat-total">0</div><div class="stat-lbl">Total</div></div>
+      </div>
+
+      <div class="limit-block">
+        <div class="limit-row"><span>Progreso diario</span><span id="limit-text">0 / 5</span></div>
+        <div class="bar-bg"><div class="bar-fill" id="limit-bar" style="width:0%"></div></div>
+      </div>
+
+      <div id="toast-area"></div>
+
+      <div class="auto-list" id="auto-list">
+        <!-- JS inyectará las automatizaciones aquí -->
+      </div>
+    </div>
+  </div>
+
+  <!-- PANEL: PLANES -->
+  <div class="panel" id="panel-plans">
+    <div class="plan-card current" data-plan="free">
+      <span class="plan-name">Plan Gratuito</span>
+      <span class="plan-price">5 ejecuciones/día</span>
+    </div>
+    <div class="plan-card" data-plan="pro" id="btn-upgrade">
+      <span class="plan-name">Pro ⚡</span>
+      <span class="plan-price">$5/mes - Ilimitado</span>
+    </div>
+  </div>
+
+  <!-- PANEL: AJUSTES -->
+  <div class="panel" id="panel-settings">
+    <div class="settings-group">
+      <label class="settings-label text-purple-ges">API KEY DE GOOGLE (GEMINI)</label>
+      <div class="input-row">
+        <input type="password" class="ges-input" id="api-key-input" placeholder="Pega tu clave aquí...">
+        <button class="save-btn" id="btn-save-key">OK</button>
+      </div>
+      <p style="font-size:10px; color:var(--text-muted); margin-top:8px;">
+        Consigue tu clave GRATIS en <span id="link-anthropic" style="color:var(--purple); cursor:pointer; text-decoration:underline;">Google AI Studio</span>
+      </p>
+    </div>
+
+    <button class="save-btn" id="btn-reset" style="width:100%; background:var(--red); padding:10px; margin-top:20px;">
+      Borrar todos los datos
+    </button>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
