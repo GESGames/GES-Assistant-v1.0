@@ -83,27 +83,34 @@ function setupEvents() {
 }
 
 async function runAction(auto) {
-  // 1. Obtener la pestaña activa
+  // 1. Obtener la pestaña actual
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
-  // 2. Pedirle al content.js el texto de la página
-  chrome.tabs.sendMessage(tab.id, { type: "GES_GET_CONTEXT" }, (response) => {
-    if (response && response.context) {
-      const pageText = response.context.data.pageText || response.context.data.pageContent || "";
-      const fullPrompt = `${auto.prompt}\n\nCONTENIDO DE LA PÁGINA:\n${pageText}`;
+  if (!tab) return alert("No hay una pestaña activa.");
 
-      // 3. Ahora sí, enviar todo al background (IA)
-      chrome.runtime.sendMessage({ 
-        type: "GES_AI_REQUEST", 
-        prompt: fullPrompt, 
-        action: auto.name 
-      }, (res) => {
-        if(res.error) alert("Error: " + res.error);
-        else alert("Resultado: " + res.text);
-      });
-    } else {
-      alert("No se pudo extraer texto de esta página.");
+  // 2. Pedir contexto al content.js
+  chrome.tabs.sendMessage(tab.id, { type: "GES_GET_CONTEXT" }, (response) => {
+    // Si hay un error de conexión con la página
+    if (chrome.runtime.lastError || !response || !response.context) {
+      alert("Recarga la página para que la extensión pueda leer el contenido.");
+      return;
     }
+
+    const pageText = response.context.data.pageText || response.context.data.pageContent || "";
+    const promptFinal = `${auto.prompt}\n\nTexto de la web:\n${pageText}`;
+
+    // 3. Enviar a la IA
+    chrome.runtime.sendMessage({ 
+      type: "GES_AI_REQUEST", 
+      prompt: promptFinal, 
+      action: auto.name 
+    }, (res) => {
+      if (res.error) {
+        alert("Error de IA: " + res.error);
+      } else {
+        alert("Resultado:\n" + res.text);
+      }
+    });
   });
 }
 
