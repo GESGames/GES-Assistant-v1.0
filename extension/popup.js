@@ -1,180 +1,112 @@
 "use strict";
 
-// 1. AUTOMATIZACIONES POR DEFECTO
-const DEFAULT_AUTOMATIONS = [
-  { id: "auto_1", name: "Responder emails",    emoji: "📧", bg: "#E1F5EE", action: "reply_email",    sites: ["Gmail"],    active: true,  pro: false, runs: 0 },
-  { id: "auto_2", name: "Resumen de reuniones",emoji: "📋", bg: "#EEEDFE", action: "summarize_meeting",sites:["Google Calendar"],active:true, pro:false, runs:0 },
-  { id: "auto_3", name: "Posts en LinkedIn",   emoji: "🐦", bg: "#FAEEDA", action: "generate_post",  sites: ["LinkedIn"], active: false, pro: true,  runs: 0 },
-  { id: "auto_4", name: "Monitor de precios",  emoji: "🛒", bg: "#FAECE7", action: "extract_data",   sites: ["Genérico"], active: false, pro: false, runs: 0 },
-  { id: "auto_5", name: "Informe semanal",     emoji: "📊", bg: "#E6F1FB", action: "summarize_page", sites: ["Genérico"], active: false, pro: true,  runs: 0  },
+const DEFAULT_AUTOS = [
+  { id: 1, name: "Resumir", emoji: "📄", action: "summarize", fav: true },
+  { id: 2, name: "Email", emoji: "📧", action: "reply_email", fav: false },
+  { id: 3, name: "LinkedIn", emoji: "🐦", action: "generate_post", fav: false }
 ];
 
-let state = {
-  plan: "free",
-  used: 0,
-  limit: 5,
-  automations: [],
-  settings: { notifs: true, allpages: true, silent: false },
-};
-
-// 2. INICIALIZACIÓN
-document.addEventListener("DOMContentLoaded", async () => {
-  setupTabs();
-  setupToggles();
+document.addEventListener("DOMContentLoaded", () => {
+  renderAutomations();
+  renderHistory();
   setupButtons();
-  await loadState();
-  renderDashboard();
-  renderPlanCards();
-  loadSettings();
+  setupTabs();
 });
 
-async function loadState() {
-  return new Promise((resolve) => {
-    chrome.runtime.sendMessage({ type: "GES_GET_STATUS" }, (response) => {
-      if (chrome.runtime.lastError || !response) {
-        state.automations = DEFAULT_AUTOMATIONS;
-        resolve();
-        return;
-      }
-      state.plan = response.plan ?? "free";
-      state.used = response.used ?? 0;
-      state.limit = response.limit ?? 5;
-      state.automations = response.automations?.length ? response.automations : DEFAULT_AUTOMATIONS;
-      resolve();
-    });
-  });
-}
-
-// 3. RENDERIZADO DEL DASHBOARD
-function renderDashboard() {
-  document.getElementById("loading-block").style.display = "none";
-  document.getElementById("dashboard-content").style.display = "block";
-
-  const isPro = state.plan !== "free";
-  const limitNum = isPro ? "∞" : String(state.limit);
-  const pct = isPro ? 0 : Math.min(100, Math.round((state.used / state.limit) * 100));
-
-  document.getElementById("stat-used").textContent = state.used;
-  document.getElementById("stat-limit").textContent = limitNum;
-  document.getElementById("stat-total").textContent = state.automations.length;
-  document.getElementById("limit-text").textContent = isPro ? `${state.used} / ∞` : `${state.used} / ${state.limit}`;
-
-  const bar = document.getElementById("limit-bar");
-  bar.style.width = `${pct}%`;
-  bar.className = "bar-fill" + (pct >= 100 ? " full" : pct >= 60 ? " warn" : "");
-
-  renderAutomations();
-}
-
-function renderAutomations() {
+// RENDERIZAR AUTOMATIZACIONES Y FAVORITOS
+async function renderAutomations() {
+  const data = await chrome.storage.local.get("ges_autos");
+  const autos = data.ges_autos || DEFAULT_AUTOS;
   const list = document.getElementById("auto-list");
+  if(!list) return;
   list.innerHTML = "";
 
-  state.automations.forEach((auto) => {
-    const isPro = state.plan !== "free";
-    const isLocked = auto.pro && !isPro;
+  // Ordenar: favoritos primero
+  autos.sort((a, b) => b.fav - a.fav).forEach(auto => {
     const item = document.createElement("div");
     item.className = "auto-item";
-    
-    // Aquí está la línea que mencionabas, ahora dentro del contexto correcto
     item.innerHTML = `
-      <div class="auto-emoji" style="background:${auto.bg}">${auto.emoji}</div>
+      <div class="auto-emoji" style="background:${auto.fav ? '#FAEEDA' : '#F7F7F5'}">${auto.emoji}</div>
       <div class="auto-info">
         <div class="auto-name">${auto.name}</div>
-        <div class="auto-sub">${auto.runs} ejecuciones</div>
       </div>
-      <span class="badge ${isLocked ? 'badge-pro' : 'badge-active'}">${isLocked ? 'Pro' : 'Activa'}</span>
-      <button class="run-btn" data-id="${auto.id}">▶</button>
+      <button class="fav-btn" style="background:none; border:none; cursor:pointer; font-size:16px;">${auto.fav ? '⭐' : '☆'}</button>
+      <button class="run-btn" data-action="${auto.action}">▶</button>
     `;
 
+    // Botón Favorito
+    item.querySelector(".fav-btn").addEventListener("click", () => toggleFav(auto.id));
+    
+    // Botón Ejecutar
     item.querySelector(".run-btn").addEventListener("click", () => {
-      if (isLocked) { switchTab("plans"); return; }
-      executeAction(auto);
+      chrome.runtime.sendMessage({ type: "GES_AI_REQUEST", action: auto.action, prompt: "Haz la tarea: " + auto.name });
     });
 
     list.appendChild(item);
   });
 }
 
-async function executeAction(auto) {
-  showToast(`⚡ Ejecutando "${auto.name}"...`, "warn");
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  
-  chrome.tabs.sendMessage(tab.id, { type: "GES_RUN_AUTOMATION", automation: auto.action }, (response) => {
-    if (chrome.runtime.lastError || !response || response.error) {
-      showToast("❌ Error: " + (response?.error || "No se pudo ejecutar"), "error");
-    } else {
-      auto.runs++;
-      state.used++;
-      renderDashboard();
-      showToast("✅ ¡Completado!", "success");
+async function toggleFav(id) {
+  const data = await chrome.storage.local.get("ges_autos");
+  let autos = data.ges_autos || DEFAULT_AUTOS;
+  autos = autos.map(a => a.id === id ? { ...a, fav: !a.fav } : a);
+  await chrome.storage.local.set({ "ges_autos": autos });
+  renderAutomations();
+}
+
+// CHAT IA
+async function sendChat() {
+  const input = document.getElementById("chat-input");
+  const box = document.getElementById("chat-box");
+  const text = input.value.trim();
+  if(!text) return;
+
+  box.innerHTML += `<p><b>Tú:</b> ${text}</p>`;
+  input.value = "";
+
+  chrome.runtime.sendMessage({ type: "GES_AI_REQUEST", prompt: text }, (res) => {
+    if(res.error) box.innerHTML += `<p style="color:red">Error: ${res.error}</p>`;
+    else {
+      box.innerHTML += `<p style="color:var(--purple)"><b>IA:</b> ${res.text}</p>`;
+      renderHistory();
     }
+    box.scrollTop = box.scrollHeight;
   });
 }
 
-// 4. BOTONES Y AJUSTES (CLAVE DE GOOGLE CORREGIDA)
+// HISTORIAL
+async function renderHistory() {
+  const data = await chrome.storage.local.get("ges_history");
+  const history = data.ges_history || [];
+  const list = document.getElementById("history-list");
+  if(!list) return;
+  list.innerHTML = history.map(h => `
+    <div style="border-bottom:1px solid #eee; padding:5px; font-size:10px;">
+      <b>[${h.date}] ${h.action}</b><br>${h.output}
+    </div>
+  `).join("");
+}
+
+// BOTONES Y API KEY
 function setupButtons() {
-  // GUARDAR API KEY (Sin restricciones de sk-ant-)
+  // GUARDAR API KEY (CORREGIDO)
   document.getElementById("btn-save-key")?.addEventListener("click", () => {
     const key = document.getElementById("api-key-input").value.trim();
-    if (key.length < 10) {
-      showToast("⚠️ Clave no válida", "warn");
-      return;
-    }
     chrome.runtime.sendMessage({ type: "GES_SET_API_KEY", apiKey: key }, () => {
-      showToast("✅ API Key de Google guardada", "success");
+      alert("¡Clave guardada!");
       document.getElementById("api-key-input").value = "";
     });
   });
 
-  document.getElementById("btn-refresh")?.addEventListener("click", () => location.reload());
-  document.getElementById("btn-settings-shortcut")?.addEventListener("click", () => switchTab("settings"));
-  document.getElementById("btn-upgrade")?.addEventListener("click", () => switchTab("plans"));
-  document.getElementById("link-anthropic")?.addEventListener("click", () => chrome.tabs.create({ url: "https://aistudio.google.com/" }));
-  
-  // Borrar datos
-  document.getElementById("btn-reset")?.addEventListener("click", () => {
-    if (confirm("¿Borrar todo?")) {
-      chrome.storage.sync.clear(() => location.reload());
-    }
-  });
+  document.getElementById("btn-send-chat")?.addEventListener("click", sendChat);
 }
 
-// 5. FUNCIONES DE APOYO (TABS, TOGGLES, PLANES)
 function setupTabs() {
-  document.querySelectorAll(".tab").forEach(tab => {
-    tab.addEventListener("click", () => switchTab(tab.dataset.tab));
-  });
-}
-
-function switchTab(tabName) {
-  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.tab === tabName));
-  document.querySelectorAll(".panel").forEach(p => p.classList.toggle("active", p.id === `panel-${tabName}`));
-}
-
-function setupToggles() {
-  document.querySelectorAll(".toggle").forEach(btn => {
-    btn.addEventListener("click", () => {
-      btn.classList.toggle("on");
-      btn.classList.toggle("off");
+  document.querySelectorAll(".tab").forEach(t => {
+    t.addEventListener("click", () => {
+      document.querySelectorAll(".tab, .panel").forEach(el => el.classList.remove("active"));
+      t.classList.add("active");
+      document.getElementById(`panel-${t.dataset.tab}`).classList.add("active");
     });
   });
-}
-
-function renderPlanCards() {
-  document.querySelectorAll(".plan-card").forEach(card => {
-    card.classList.toggle("current", card.dataset.plan === state.plan);
-  });
-}
-
-function loadSettings() {
-  chrome.storage.sync.get("ges_settings", (data) => {
-    if (data.ges_settings) state.settings = data.ges_settings;
-  });
-}
-
-function showToast(text, type) {
-  const area = document.getElementById("toast-area");
-  area.innerHTML = `<div class="toast-inline toast-${type}">${text}</div>`;
-  setTimeout(() => { area.innerHTML = ""; }, 3500);
 }

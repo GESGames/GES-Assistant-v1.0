@@ -191,6 +191,34 @@
     <div class="tab" data-tab="settings">Ajustes</div>
   </div>
 
+  <!-- ... (Mantén tu CSS anterior y añade esto en la sección de paneles) -->
+
+  <div class="tabs">
+    <div class="tab active" data-tab="dashboard">Home</div>
+    <div class="tab" data-tab="chat">Chat</div>
+    <div class="tab" data-tab="history">Historial</div>
+    <div class="tab" data-tab="settings">⚙</div>
+  </div>
+
+  <!-- PANEL: CHAT IA -->
+  <div class="panel" id="panel-chat">
+    <div id="chat-box" style="height: 200px; overflow-y: auto; background: var(--gray-bg); padding: 10px; border-radius: 8px; margin-bottom: 10px; font-size: 11px;">
+      <p style="color:var(--purple)">¡Hola! Soy tu asistente. ¿En qué puedo ayudarte?</p>
+    </div>
+    <div class="input-row">
+      <input type="text" id="chat-input" class="ges-input" placeholder="Pregunta algo...">
+      <button class="save-btn" id="btn-send-chat">🚀</button>
+    </div>
+  </div>
+
+  <!-- PANEL: HISTORIAL -->
+  <div class="panel" id="panel-history">
+    <div class="section-title">Últimas acciones</div>
+    <div id="history-list" style="display:flex; flex-direction:column; gap:8px; margin-top:10px;">
+      <!-- Se llena por JS -->
+    </div>
+  </div>
+  
   <!-- PANEL: DASHBOARD -->
   <div class="panel active" id="panel-dashboard">
     <div id="loading-block">Cargando...</div>
