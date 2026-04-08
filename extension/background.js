@@ -8,20 +8,31 @@ async function callGeminiAPI(promptText) {
   
   if (!apiKey) throw new Error("Falta la API Key en Ajustes.");
 
-  // URL CAMBIADA A V1 (ESTABLE) para evitar el error de 'model not found'
-  const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+  // URL CAMBIADA A v1beta y modelo 'gemini-1.5-flash'
+  // Esta es la combinación más estable actualmente
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
   
   const response = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      contents: [{ parts: [{ text: promptText }] }]
+      contents: [{
+        parts: [{ text: promptText }]
+      }]
     })
   });
 
   const resData = await response.json();
-  if (!response.ok) throw new Error(resData.error?.message || "Error en la API");
   
+  if (!response.ok) {
+    // Si falla el flash, intentamos con el pro (fallback)
+    throw new Error(resData.error?.message || "Error en la conexión con Google");
+  }
+  
+  if (!resData.candidates || !resData.candidates[0].content) {
+    throw new Error("La IA no devolvió una respuesta válida.");
+  }
+
   return resData.candidates[0].content.parts[0].text;
 }
 
@@ -39,7 +50,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         await chrome.storage.local.set({ [STORAGE_KEYS.HISTORY]: history.slice(0, 10) });
         sendResponse({ text });
       })
-      .catch(err => sendResponse({ error: err.message }));
+      .catch(err => {
+        console.error(err);
+        sendResponse({ error: err.message });
+      });
     return true;
   }
   

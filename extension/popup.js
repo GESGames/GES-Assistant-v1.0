@@ -1,8 +1,8 @@
 "use strict";
 
 const BASE_AUTOS = [
-  { id: 1, name: "Resumir Web", emoji: "📄", prompt: "Resume este contenido", fav: true },
-  { id: 2, name: "Traducir", emoji: "🌍", prompt: "Traduce esto al español", fav: false }
+  { id: 1, name: "Resumir Web", emoji: "📄", prompt: "Resume este contenido de forma breve", fav: true },
+  { id: 2, name: "Traducir", emoji: "🌍", prompt: "Traduce el texto seleccionado al español", fav: false }
 ];
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -49,33 +49,25 @@ async function renderAutomations() {
 }
 
 function setupEvents() {
-  // Guardar nueva acción
   document.getElementById("btn-save-action").onclick = async () => {
     const name = document.getElementById("new-name").value;
     const emoji = document.getElementById("new-emoji").value;
     const prompt = document.getElementById("new-prompt").value;
-
     if(!name || !prompt) return alert("Faltan datos");
-
     const data = await chrome.storage.local.get("custom_autos");
     const autos = data.custom_autos || [...BASE_AUTOS];
     autos.push({ id: Date.now(), name, emoji: emoji || "⚡", prompt, fav: false });
-    
     await chrome.storage.local.set({ "custom_autos": autos });
-    alert("Acción creada!");
     renderAutomations();
-    // Limpiar campos
     document.getElementById("new-name").value = "";
     document.getElementById("new-prompt").value = "";
   };
 
-  // Guardar API Key
   document.getElementById("btn-save-key").onclick = () => {
     const key = document.getElementById("api-key-input").value.trim();
     chrome.runtime.sendMessage({ type: "GES_SET_API_KEY", apiKey: key }, () => alert("Clave guardada"));
   };
 
-  // Chat
   document.getElementById("btn-send-chat").onclick = () => {
     const input = document.getElementById("chat-input");
     const box = document.getElementById("chat-box");
@@ -91,8 +83,10 @@ function setupEvents() {
 }
 
 async function runAction(auto) {
-  alert(`Ejecutando: ${auto.name}`);
-  chrome.runtime.sendMessage({ type: "GES_AI_REQUEST", prompt: auto.prompt, action: auto.name });
+  chrome.runtime.sendMessage({ type: "GES_AI_REQUEST", prompt: auto.prompt, action: auto.name }, (res) => {
+    if(res.error) alert("Error: " + res.error);
+    else alert("Resultado: " + res.text.substring(0, 100) + "...");
+  });
 }
 
 async function toggleFav(id) {
