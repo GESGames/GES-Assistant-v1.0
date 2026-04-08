@@ -8,32 +8,32 @@ async function callGeminiAPI(promptText) {
   
   if (!apiKey) throw new Error("Falta la API Key en Ajustes.");
 
-  // URL CAMBIADA A v1beta y modelo 'gemini-1.5-flash'
-  // Esta es la combinación más estable actualmente
-const url = `https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+  // Forzamos la versión 1.5-flash que es la más estable para cuentas gratuitas
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
   
-  const response = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      contents: [{
-        parts: [{ text: promptText }]
-      }]
-    })
-  });
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: promptText }] }]
+      })
+    });
 
-  const resData = await response.json();
-  
-  if (!response.ok) {
-    // Si falla el flash, intentamos con el pro (fallback)
-    throw new Error(resData.error?.message || "Error en la conexión con Google");
-  }
-  
-  if (!resData.candidates || !resData.candidates[0].content) {
-    throw new Error("La IA no devolvió una respuesta válida.");
-  }
+    const resData = await response.json();
 
-  return resData.candidates[0].content.parts[0].text;
+    if (response.status === 429) {
+      throw new Error("Límite de Google alcanzado. Espera 60 segundos.");
+    }
+
+    if (!response.ok) {
+      throw new Error(resData.error?.message || "Error en la API");
+    }
+
+    return resData.candidates[0].content.parts[0].text;
+  } catch (error) {
+    throw error;
+  }
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -51,7 +51,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         sendResponse({ text });
       })
       .catch(err => {
-        console.error(err);
         sendResponse({ error: err.message });
       });
     return true;
