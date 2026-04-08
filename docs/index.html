@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GES Assistant - Automatización con IA</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .bg-purple-ges { background-color: #534AB7; }
+        .text-purple-ges { color: #534AB7; }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 font-sans">
+
+    <!-- Navbar -->
+    <nav class="p-6 flex justify-between items-center max-w-6xl mx-auto">
+        <div class="flex items-center gap-2 font-bold text-xl">
+            <div class="w-8 h-8 bg-purple-ges rounded-lg flex items-center justify-center text-white">G</div>
+            GES Assistant
+        </div>
+        <a href="#precios" class="text-sm font-semibold hover:text-purple-ges">Precios</a>
+    </nav>
+
+    <!-- Hero Section -->
+    <header class="max-w-4xl mx-auto text-center py-20 px-6">
+        <h1 class="text-5xl md:text-6xl font-extrabold mb-6">Tu Asistente de IA personal en <span class="text-purple-ges">Chrome</span></h1>
+        <p class="text-xl text-gray-600 mb-10">Automatiza Gmail, LinkedIn y Notion en segundos. Deja que la IA haga el trabajo pesado por ti.</p>
+        <div class="flex flex-col md:flex-row gap-4 justify-center">
+            <a href="#" class="bg-purple-ges text-white px-8 py-4 rounded-full font-bold text-lg hover:shadow-lg transition">Añadir a Chrome — Gratis</a>
+            <a href="#demo" class="bg-white border border-gray-300 px-8 py-4 rounded-full font-bold text-lg hover:bg-gray-50 transition">Ver Demo</a>
+        </div>
+    </header>
+
+    <!-- Precios -->
+    <section id="precios" class="py-20 bg-white">
+        <div class="max-w-6xl mx-auto px-6 text-center">
+            <h2 class="text-3xl font-bold mb-12">Planes sencillos</h2>
+            <div class="grid md:grid-cols-2 gap-8 max-w-2xl mx-auto">
+                <!-- Plan Gratis -->
+                <div class="p-8 border rounded-2xl hover:border-purple-ges transition">
+                    <h3 class="text-xl font-bold mb-2">Gratis</h3>
+                    <p class="text-4xl font-bold mb-6">$0</p>
+                    <ul class="text-left space-y-3 mb-8 text-gray-600">
+                        <li>✅ 5 ejecuciones diarias</li>
+                        <li>✅ 3 automatizaciones</li>
+                        <li>✅ Soporte comunitario</li>
+                    </ul>
+                    <button class="w-full py-3 border rounded-xl font-bold hover:bg-gray-50">Empezar ya</button>
+                </div>
+                <!-- Plan Pro -->
+                <div class="p-8 border-2 border-purple-ges rounded-2xl relative">
+                    <span class="absolute -top-4 left-1/2 -translate-x-1/2 bg-purple-ges text-white px-4 py-1 rounded-full text-xs">RECOMENDADO</span>
+                    <h3 class="text-xl font-bold mb-2">Pro ⚡</h3>
+                    <p class="text-4xl font-bold mb-6">$5<span class="text-sm text-gray-500">/mes</span></p>
+                    <ul class="text-left space-y-3 mb-8 text-gray-600">
+                        <li>✅ Ejecuciones ilimitadas</li>
+                        <li>✅ IA Avanzada (Claude Sonnet)</li>
+                        <li>✅ Soporte Prioritario</li>
+                    </ul>
+                    <a href="TU_LINK_DE_STRIPE_AQUI" class="block w-full py-3 bg-purple-ges text-white rounded-xl font-bold hover:opacity-90">Suscribirse</a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer class="py-10 text-center text-gray-400 text-sm">
+        &copy; 2025 GES Assistant. Todos los derechos reservados.
+    </footer>
+
+</body>
+</html>
