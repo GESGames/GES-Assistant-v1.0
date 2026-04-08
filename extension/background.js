@@ -8,10 +8,12 @@ async function callGeminiAPI(promptText) {
   
   if (!apiKey) throw new Error("Configura la API Key en los ajustes de la extensión.");
 
-  // La URL debe declararse dentro de la función para tener acceso a la apiKey actualizada
-const model = "gemini-2.0-flash";
-const url = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent`;  
-  const response = await fetch(endpoint, {
+  const model = "gemini-2.0-flash";
+  const url = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${apiKey}`;
+  //                                                                                            ^^^^^^^^^^
+  //                                                                               La API key va en la URL
+
+  const response = await fetch(url, {  // ← "endpoint" → "url"
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -36,7 +38,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === "GES_AI_REQUEST") {
     callGeminiAPI(message.prompt)
       .then(async (text) => {
-        // Guardar en el historial local
         const histData = await chrome.storage.local.get(STORAGE_KEYS.HISTORY);
         const history = histData[STORAGE_KEYS.HISTORY] || [];
         history.unshift({ 
@@ -52,7 +53,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         console.error(err);
         sendResponse({ error: err.message });
       });
-    return true; // Importante para respuestas asíncronas
+    return true;
   }
 
   if (message.type === "GES_SET_API_KEY") {
