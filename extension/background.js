@@ -9,8 +9,8 @@ async function callGeminiAPI(promptText) {
   if (!apiKey) throw new Error("Configura la API Key en los ajustes de la extensión.");
 
   // La URL debe declararse dentro de la función para tener acceso a la apiKey actualizada
-  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-  
+const model = "gemini-2.0-flash";
+const url = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent`;  
   const response = await fetch(endpoint, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
