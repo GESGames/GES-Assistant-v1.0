@@ -63,10 +63,13 @@ function setupEvents() {
     document.getElementById("new-prompt").value = "";
   };
 
-  document.getElementById("btn-save-key").onclick = () => {
-    const key = document.getElementById("api-key-input").value.trim();
-    chrome.runtime.sendMessage({ type: "GES_SET_API_KEY", apiKey: key }, () => alert("Clave guardada"));
-  };
+document.getElementById("btn-save-key").onclick = () => {
+  const key = document.getElementById("api-key-input").value.trim();
+  if (!key.startsWith("sk-or-")) {
+    return alert("Eso no parece una API key de OpenRouter. Debe empezar por sk-or-");
+  }
+  chrome.runtime.sendMessage({ type: "GES_SET_API_KEY", apiKey: key }, () => alert("✅ Clave de OpenRouter guardada"));
+};
 
   document.getElementById("btn-send-chat").onclick = () => {
     const input = document.getElementById("chat-input");
