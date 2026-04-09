@@ -3,71 +3,170 @@
 <head>
   <meta charset="UTF-8">
   <style>
-    :root { --purple: #534AB7; --purple-light: #EEEDFE; --gray: #f5f5f5; }
-    body { width: 340px; min-height: 480px; font-family: sans-serif; margin: 0; background: white; }
-    .tabs { display: flex; border-bottom: 1px solid #ddd; background: #fff; position: sticky; top: 0; z-index: 10; }
-    .tab { flex: 1; padding: 12px; text-align: center; cursor: pointer; font-size: 11px; font-weight: bold; color: #666; }
-    .tab.active { color: var(--purple); border-bottom: 3px solid var(--purple); background: var(--purple-light); }
-    .panel { display: none; padding: 15px; }
+    :root {
+      --bg-dark: #0f0c29;
+      --glass: rgba(255, 255, 255, 0.1);
+      --neon-purple: #bc13fe;
+      --neon-cyan: #0ff;
+      --text: #e0e0e0;
+      --accent: #6a11cb;
+    }
+
+    body {
+      width: 360px;
+      min-height: 500px;
+      font-family: 'Segoe UI', Roboto, sans-serif;
+      margin: 0;
+      background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+      color: var(--text);
+      overflow-x: hidden;
+    }
+
+    /* Tabs Estilo Cockpit */
+    .tabs {
+      display: flex;
+      background: rgba(0, 0, 0, 0.4);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--neon-purple);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .tab {
+      flex: 1;
+      padding: 14px;
+      text-align: center;
+      cursor: pointer;
+      font-size: 10px;
+      font-weight: bold;
+      letter-spacing: 1px;
+      transition: 0.3s;
+      color: #888;
+    }
+
+    .tab.active {
+      color: var(--neon-cyan);
+      background: rgba(188, 19, 254, 0.2);
+      box-shadow: inset 0 -2px 10px var(--neon-purple);
+    }
+
+    .panel { display: none; padding: 20px; animation: fadeIn 0.4s ease; }
     .panel.active { display: block; }
-    .auto-item { display: flex; align-items: center; gap: 10px; padding: 10px; border: 1px solid #eee; margin-bottom: 8px; border-radius: 10px; }
-    .ges-input { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; margin-bottom: 10px; }
-    .btn { background: var(--purple); color: white; border: none; padding: 10px; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%; }
-    #chat-box { height: 180px; overflow-y: auto; background: var(--gray); padding: 10px; border-radius: 10px; margin-bottom: 10px; font-size: 11px; }
-    .fav-btn { cursor: pointer; border: none; background: none; font-size: 16px; }
-    .delete-btn { color: red; cursor: pointer; font-size: 10px; margin-left: auto; border: none; background: none; }
-    .settings-label { font-size: 11px; font-weight: bold; display: block; margin-bottom: 4px; color: #444; }
-    .settings-hint { font-size: 10px; color: #888; margin: -6px 0 10px 0; }
-    .settings-hint a { color: var(--purple); }
-    .settings-note { font-size: 10px; background: var(--purple-light); border-radius: 8px; padding: 8px 10px; color: #555; margin-top: 12px; line-height: 1.5; }
+
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* Inputs y Botones Futuristas */
+    .ges-input {
+      width: 100%;
+      padding: 10px;
+      background: var(--glass);
+      border: 1px solid var(--neon-purple);
+      border-radius: 5px;
+      color: white;
+      box-sizing: border-box;
+      margin-bottom: 15px;
+      outline: none;
+    }
+
+    .ges-input:focus { border-color: var(--neon-cyan); box-shadow: 0 0 8px var(--neon-cyan); }
+
+    .btn {
+      background: linear-gradient(45deg, var(--accent), var(--neon-purple));
+      color: white;
+      border: none;
+      padding: 12px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-weight: bold;
+      width: 100%;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      transition: 0.3s;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    }
+
+    .btn:hover { transform: scale(1.02); box-shadow: 0 0 15px var(--neon-purple); }
+
+    /* Área de Chat y Resultados */
+    #chat-box {
+      height: 220px;
+      overflow-y: auto;
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 15px;
+      border-radius: 10px;
+      margin-bottom: 10px;
+      font-size: 12px;
+      line-height: 1.5;
+      scrollbar-width: thin;
+      scrollbar-color: var(--neon-purple) transparent;
+    }
+
+    /* Mensajes de la IA */
+    .msg { margin-bottom: 10px; padding: 8px; border-radius: 5px; }
+    .msg-ia { border-left: 3px solid var(--neon-cyan); background: rgba(0, 255, 255, 0.05); }
+    .msg-user { border-right: 3px solid var(--neon-purple); background: rgba(188, 19, 254, 0.05); text-align: right; }
+
+    /* Acciones en Home */
+    .auto-item {
+      background: var(--glass);
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: 0.2s;
+    }
+    .auto-item:hover { border-color: var(--neon-cyan); background: rgba(255,255,255,0.15); }
+    
+    .loading-shimmer { color: var(--neon-cyan); font-style: italic; font-size: 11px; }
   </style>
 </head>
 <body>
 
   <div class="tabs">
-    <div class="tab active" data-tab="home">HOME</div>
-    <div class="tab" data-tab="create">➕</div>
+    <div class="tab active" data-tab="home">ACCIONES</div>
     <div class="tab" data-tab="chat">CHAT</div>
-    <div class="tab" data-tab="history">HIST.</div>
-    <div class="tab" data-tab="settings">⚙</div>
+    <div class="tab" data-tab="create">NUEVO</div>
+    <div class="tab" data-tab="history">LOGS</div>
+    <div class="tab" data-tab="settings">KEY</div>
   </div>
 
+  <!-- HOME: LISTA DE ACCIONES -->
   <div class="panel active" id="panel-home">
-    <div id="auto-list">Cargando...</div>
+    <div id="auto-list">Cargando protocolos...</div>
   </div>
 
-  <div class="panel" id="panel-create">
-    <h3 style="font-size:14px; margin-bottom:10px;">Crear Nueva Acción</h3>
-    <input type="text" id="new-name" class="ges-input" placeholder="Nombre (Ej: Corregir Texto)">
-    <input type="text" id="new-emoji" class="ges-input" placeholder="Emoji (Ej: ✍️)">
-    <textarea id="new-prompt" class="ges-input" style="height:60px;" placeholder="¿Qué debe hacer la IA?"></textarea>
-    <button id="btn-save-action" class="btn">Guardar Acción</button>
-  </div>
-
+  <!-- CHAT / RESULTADOS -->
   <div class="panel" id="panel-chat">
-    <div id="chat-box">¡Hola! ¿En qué te ayudo?</div>
-    <div style="display:flex; gap:5px;">
-      <input type="text" id="chat-input" class="ges-input" placeholder="Pregunta algo...">
-      <button id="btn-send-chat" class="btn" style="width:50px;">🚀</button>
+    <div id="chat-box">Sistemas listos. Esperando órdenes...</div>
+    <div style="display:flex; gap:8px;">
+      <input type="text" id="chat-input" class="ges-input" style="margin-bottom:0" placeholder="Comando de voz/texto...">
+      <button id="btn-send-chat" class="btn" style="width:60px;">EXE</button>
     </div>
   </div>
 
+  <!-- CREAR ACCIÓN -->
+  <div class="panel" id="panel-create">
+    <input type="text" id="new-name" class="ges-input" placeholder="Nombre del Protocolo">
+    <input type="text" id="new-emoji" class="ges-input" placeholder="Icono (Emoji)">
+    <textarea id="new-prompt" class="ges-input" style="height:80px;" placeholder="Instrucciones para la IA..."></textarea>
+    <button id="btn-save-action" class="btn">Sincronizar Protocolo</button>
+  </div>
+
+  <!-- HISTORIAL -->
   <div class="panel" id="panel-history">
     <div id="history-list"></div>
   </div>
 
+  <!-- CONFIGURACIÓN -->
   <div class="panel" id="panel-settings">
-    <label class="settings-label">🔑 OPENROUTER API KEY</label>
-    <input id="api-key-input" class="ges-input" placeholder="sk-or-v1-...">
-    <p class="settings-hint">
-      Obtén tu clave gratis en 
-      <a href="https://openrouter.ai/keys" target="_blank">openrouter.ai/keys</a>
-    </p>
-    <button id="btn-save-key" class="btn">Guardar Clave</button>
-    <div class="settings-note">
-      ℹ️ Cada usuario usa su propia clave gratuita de OpenRouter.<br>
-      La clave se guarda solo en tu navegador y nunca se comparte.
-    </div>
+    <label style="font-size: 10px; color: var(--neon-cyan);">OPENROUTER_CORE_KEY</label>
+    <input id="api-key-input" type="password" class="ges-input" placeholder="sk-or-v1-...">
+    <button id="btn-save-key" class="btn">Guardar en Memoria</button>
   </div>
 
   <script src="popup.js"></script>

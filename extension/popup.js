@@ -1,144 +1,111 @@
 "use strict";
 
-const BASE_AUTOS = [
-  { id: 1, name: "Resumir Web", emoji: "📄", prompt: "Resume este contenido de forma breve", fav: true },
-  { id: 2, name: "Traducir", emoji: "🌍", prompt: "Traduce el texto seleccionado al español", fav: false }
-];
+document.addEventListener("DOMContentLoaded", () => {
+  const tabs = document.querySelectorAll(".tab");
+  const panels = document.querySelectorAll(".panel");
+  const chatBox = document.getElementById("chat-box");
+  const chatInput = document.getElementById("chat-input");
+  const btnSendChat = document.getElementById("btn-send-chat");
 
-document.addEventListener("DOMContentLoaded", async () => {
-  initTabs();
-  await renderAutomations();
-  setupEvents();
-});
-
-function initTabs() {
-  document.querySelectorAll(".tab").forEach(tab => {
+  // 1. Gestión de Pestañas
+  tabs.forEach(tab => {
     tab.addEventListener("click", () => {
-      document.querySelectorAll(".tab, .panel").forEach(el => el.classList.remove("active"));
+      tabs.forEach(t => t.classList.remove("active"));
+      panels.forEach(p => p.classList.remove("active"));
       tab.classList.add("active");
       document.getElementById(`panel-${tab.dataset.tab}`).classList.add("active");
-      if (tab.dataset.tab === "history") renderHistory();
     });
   });
-}
 
-async function renderAutomations() {
-  const data = await chrome.storage.local.get("custom_autos");
-  const autos = data.custom_autos || BASE_AUTOS;
-  const list = document.getElementById("auto-list");
-  list.innerHTML = "";
+  // 2. Función para añadir mensajes al chat
+  function appendMessage(role, text) {
+    const msgDiv = document.createElement("div");
+    msgDiv.className = `msg ${role === 'user' ? 'msg-user' : 'msg-ia'}`;
+    msgDiv.innerHTML = `<strong>${role.toUpperCase()}:</strong><br>${text}`;
+    chatBox.appendChild(msgDiv);
+    chatBox.scrollTop = chatBox.scrollHeight;
+  }
 
-  autos.sort((a,b) => b.fav - a.fav).forEach(auto => {
-    const div = document.createElement("div");
-    div.className = "auto-item";
-    div.innerHTML = `
-      <span>${auto.emoji}</span>
-      <div style="flex:1; font-size:12px; font-weight:bold;">${auto.name}</div>
-      <button class="fav-btn">${auto.fav ? '⭐' : '☆'}</button>
-      <button class="run-btn" style="background:var(--purple); color:white; border:none; border-radius:4px; padding:4px 8px; cursor:pointer;">▶</button>
-      ${auto.id > 2 ? '<button class="delete-btn">🗑️</button>' : ''}
-    `;
+  // 3. Función para enviar al Background
+  async function sendMessage() {
+    const prompt = chatInput.value.trim();
+    if (!prompt) return;
 
-    div.querySelector(".fav-btn").onclick = () => toggleFav(auto.id);
-    div.querySelector(".run-btn").onclick = () => runAction(auto);
-    if(div.querySelector(".delete-btn")) {
-      div.querySelector(".delete-btn").onclick = () => deleteAction(auto.id);
+    appendMessage("user", prompt);
+    chatInput.value = "";
+    const loadingMsg = document.createElement("div");
+    loadingMsg.className = "loading-shimmer";
+    loadingMsg.innerText = "Procesando respuesta...";
+    chatBox.appendChild(loadingMsg);
+
+    chrome.runtime.sendMessage({ type: "GES_AI_REQUEST", prompt: prompt }, (response) => {
+      loadingMsg.remove();
+      if (response && response.text) {
+        appendMessage("ia", response.text);
+      } else {
+        appendMessage("ia", "Error: " + (response?.error || "Desconocido"));
+      }
+    });
+  }
+
+  // 4. EVENTO: Enviar con CLICK
+  btnSendChat.addEventListener("click", sendMessage);
+
+  // 5. EVENTO: Enviar con ENTER
+  chatInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      sendMessage();
     }
-    list.appendChild(div);
   });
-}
 
-function setupEvents() {
-  document.getElementById("btn-save-action").onclick = async () => {
+  // 6. Cargar Acciones (Botones de tareas)
+  function renderActions() {
+    chrome.storage.local.get("custom_actions", (data) => {
+      const actions = data.custom_actions || [
+        { name: "Corregir Gramática", emoji: "✍️", prompt: "Corrige la gramática del siguiente texto: " },
+        { name: "Resumir", emoji: "📜", prompt: "Resume el siguiente texto de forma concisa: " }
+      ];
+      const list = document.getElementById("auto-list");
+      list.innerHTML = "";
+      actions.forEach(act => {
+        const div = document.createElement("div");
+        div.className = "auto-item";
+        div.innerHTML = `<span>${act.emoji}</span> <span style="margin-left:10px">${act.name}</span>`;
+        div.onclick = () => {
+          // Al hacer clic, llevamos el prompt al chat
+          tabs[1].click(); // Cambia a pestaña CHAT
+          chatInput.value = act.prompt;
+          chatInput.focus();
+        };
+        list.appendChild(div);
+      });
+    });
+  }
+
+  // 7. Guardar Nueva Acción
+  document.getElementById("btn-save-action").onclick = () => {
     const name = document.getElementById("new-name").value;
     const emoji = document.getElementById("new-emoji").value;
     const prompt = document.getElementById("new-prompt").value;
-    if(!name || !prompt) return alert("Faltan datos");
-    const data = await chrome.storage.local.get("custom_autos");
-    const autos = data.custom_autos || [...BASE_AUTOS];
-    autos.push({ id: Date.now(), name, emoji: emoji || "⚡", prompt, fav: false });
-    await chrome.storage.local.set({ "custom_autos": autos });
-    renderAutomations();
-    document.getElementById("new-name").value = "";
-    document.getElementById("new-prompt").value = "";
+
+    chrome.storage.local.get("custom_actions", (data) => {
+      const actions = data.custom_actions || [];
+      actions.push({ name, emoji, prompt });
+      chrome.storage.local.set({ custom_actions: actions }, () => {
+        renderActions();
+        tabs[0].click();
+      });
+    });
   };
 
-document.getElementById("btn-save-key").onclick = () => {
-  const key = document.getElementById("api-key-input").value.trim();
-  if (!key.startsWith("sk-or-")) {
-    return alert("Eso no parece una API key de OpenRouter. Debe empezar por sk-or-");
-  }
-  chrome.runtime.sendMessage({ type: "GES_SET_API_KEY", apiKey: key }, () => alert("✅ Clave de OpenRouter guardada"));
-};
-
-  document.getElementById("btn-send-chat").onclick = () => {
-    const input = document.getElementById("chat-input");
-    const box = document.getElementById("chat-box");
-    const msg = input.value;
-    if(!msg) return;
-    box.innerHTML += `<div><b>Tú:</b> ${msg}</div>`;
-    chrome.runtime.sendMessage({ type: "GES_AI_REQUEST", prompt: msg, action: "Chat" }, (res) => {
-      box.innerHTML += `<div style="color:var(--purple)"><b>IA:</b> ${res.text || res.error}</div>`;
-      box.scrollTop = box.scrollHeight;
+  // 8. API Key
+  document.getElementById("btn-save-key").onclick = () => {
+    const key = document.getElementById("api-key-input").value;
+    chrome.runtime.sendMessage({ type: "GES_SET_API_KEY", apiKey: key }, (res) => {
+      alert("Nivel de acceso actualizado.");
     });
-    input.value = "";
   };
-}
 
-async function runAction(auto) {
-  // 1. Obtener la pestaña actual
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-
-  if (!tab) return alert("No hay una pestaña activa.");
-
-  // 2. Pedir contexto al content.js
-  chrome.tabs.sendMessage(tab.id, { type: "GES_GET_CONTEXT" }, (response) => {
-    // Si hay un error de conexión con la página
-    if (chrome.runtime.lastError || !response || !response.context) {
-      alert("Recarga la página para que la extensión pueda leer el contenido.");
-      return;
-    }
-
-    const pageText = response.context.data.pageText || response.context.data.pageContent || "";
-    const promptFinal = `${auto.prompt}\n\nTexto de la web:\n${pageText}`;
-
-    // 3. Enviar a la IA
-    chrome.runtime.sendMessage({ 
-      type: "GES_AI_REQUEST", 
-      prompt: promptFinal, 
-      action: auto.name 
-    }, (res) => {
-      if (res.error) {
-        alert("Error de IA: " + res.error);
-      } else {
-        alert("Resultado:\n" + res.text);
-      }
-    });
-  });
-}
-
-async function toggleFav(id) {
-  const data = await chrome.storage.local.get("custom_autos");
-  let autos = data.custom_autos || [...BASE_AUTOS];
-  autos = autos.map(a => a.id === id ? {...a, fav: !a.fav} : a);
-  await chrome.storage.local.set({ "custom_autos": autos });
-  renderAutomations();
-}
-
-async function deleteAction(id) {
-  const data = await chrome.storage.local.get("custom_autos");
-  let autos = data.custom_autos || [];
-  autos = autos.filter(a => a.id !== id);
-  await chrome.storage.local.set({ "custom_autos": autos });
-  renderAutomations();
-}
-
-async function renderHistory() {
-  const data = await chrome.storage.local.get("ges_history");
-  const hist = data.ges_history || [];
-  document.getElementById("history-list").innerHTML = hist.map(h => `
-    <div style="font-size:10px; border-bottom:1px solid #eee; padding:5px;">
-      <b>${h.date} - ${h.action}</b><br>${h.text}
-    </div>
-  `).join("");
-}
+  renderActions();
+});
