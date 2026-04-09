@@ -17,7 +17,7 @@ async function callOpenRouterAPI(promptText) {
       "X-Title": "GES Assistant"
     },
     body: JSON.stringify({
-      model: "meta-llama/llama-3.1-8b-instruct:free", // ← modelo gratuito
+      model: "openrouter/free"
       messages: [{ role: "user", content: promptText }]
     })
   });
