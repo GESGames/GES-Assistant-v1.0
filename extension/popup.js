@@ -3,45 +3,13 @@
 document.addEventListener("DOMContentLoaded", () => {
   const tabs = document.querySelectorAll(".tab");
   const panels = document.querySelectorAll(".panel");
-  const chatBox = document.getElementById("chat-box");
   const chatInput = document.getElementById("chat-input");
-  const btnSendChat = document.getElementById("btn-send-chat");
-  const energyFill = document.getElementById("energy-fill");
-  const usageText = document.getElementById("usage-text");
+  const taskList = document.getElementById("task-list");
+  const usageBadge = document.getElementById("usage-count");
 
-  const MAX_FREE_ACTIONS = 5;
+  const MAX_FREE_TASKS = 5;
 
-  // --- 1. Daily Limit Logic ---
-  async function checkUsage() {
-    const today = new Date().toLocaleDateString();
-    let data = await chrome.storage.local.get(['usageCount', 'lastDate', 'isPro']);
-    
-    if (data.isPro) {
-      usageText.innerText = "UNLIMITED";
-      energyFill.style.width = "100%";
-      return true;
-    }
-
-    if (data.lastDate !== today) {
-      data = { usageCount: 0, lastDate: today };
-      await chrome.storage.local.set(data);
-    }
-
-    const remaining = MAX_FREE_ACTIONS - data.usageCount;
-    usageText.innerText = `${remaining}/${MAX_FREE_ACTIONS} LEFT`;
-    energyFill.style.width = `${(remaining / MAX_FREE_ACTIONS) * 100}%`;
-
-    return remaining > 0;
-  }
-
-  async function incrementUsage() {
-    let data = await chrome.storage.local.get(['usageCount', 'isPro']);
-    if (data.isPro) return;
-    await chrome.storage.local.set({ usageCount: (data.usageCount || 0) + 1 });
-    checkUsage();
-  }
-
-  // --- 2. Tab Navigation ---
+  // 1. Navigation
   tabs.forEach(tab => {
     tab.addEventListener("click", () => {
       tabs.forEach(t => t.classList.remove("active"));
@@ -51,77 +19,80 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
-  // --- 3. Chat Logic ---
-  function appendMsg(role, text) {
-    const d = document.createElement("div");
-    d.style.marginBottom = "10px";
-    d.style.color = role === 'user' ? '#fff' : 'var(--neon-cyan)';
-    d.innerHTML = `<strong>${role === 'user' ? '>> USER' : '>> AI'}:</strong><br>${text}`;
-    chatBox.appendChild(d);
-    chatBox.scrollTop = chatBox.scrollHeight;
-  }
-
-  async function handleExecution() {
-    const prompt = chatInput.value.trim();
-    if (!prompt) return;
-
-    const hasEnergy = await checkUsage();
-    if (!hasEnergy) {
-      appendMsg("system", "ENERGY DEPLETED. Upgrade to PRO or wait 24h.");
-      return;
-    }
-
-    appendMsg("user", prompt);
+  // 2. Chat - Send with Enter
+  const sendMessage = () => {
+    const text = chatInput.value.trim();
+    if (!text) return;
+    appendChat("USER", text);
     chatInput.value = "";
-
-    chrome.runtime.sendMessage({ type: "GES_AI_REQUEST", prompt: prompt }, (res) => {
-      if (res && res.text) {
-        appendMsg("ai", res.text);
-        incrementUsage();
-      } else {
-        appendMsg("ai", "ERROR: " + (res?.error || "Connection lost"));
-      }
-    });
-  }
-
-  btnSendChat.onclick = handleExecution;
-  chatInput.onkeydown = (e) => { if (e.key === "Enter") handleExecution(); };
-
-  // --- 4. Render Home Actions ---
-  function renderActions() {
-    const actions = [
-      { name: "Grammar Fix", emoji: "🛰️", prompt: "Correct the grammar: " },
-      { name: "Fast Summary", emoji: "💾", prompt: "Summarize this: " },
-      { name: "Translate EN", emoji: "🌐", prompt: "Translate to English: " }
-    ];
     
-    const list = document.getElementById("auto-list");
-    list.innerHTML = "";
-    actions.forEach(act => {
-      const item = document.createElement("div");
-      item.style.padding = "12px";
-      item.style.border = "1px solid #333";
-      item.style.marginBottom = "8px";
-      item.style.cursor = "pointer";
-      item.style.borderRadius = "4px";
-      item.innerHTML = `${act.emoji} ${act.name}`;
-      item.onclick = () => {
-        tabs[1].click(); // Go to Chat
-        chatInput.value = act.prompt;
-        chatInput.focus();
-      };
-      list.appendChild(item);
-    });
-  }
-
-  // --- 5. Settings ---
-  document.getElementById("btn-save-key").onclick = () => {
-    const key = document.getElementById("api-key-input").value;
-    chrome.runtime.sendMessage({ type: "GES_SET_API_KEY", apiKey: key }, () => {
-      alert("System Updated.");
+    chrome.runtime.sendMessage({ type: "GES_AI_REQUEST", prompt: text }, (res) => {
+      appendChat("AI", res.text || "Error in core.");
     });
   };
 
-  checkUsage();
-  renderActions();
+  document.getElementById("btn-send-chat").onclick = sendMessage;
+  chatInput.onkeydown = (e) => { if (e.key === "Enter") sendMessage(); };
+
+  function appendChat(role, msg) {
+    const box = document.getElementById("chat-box");
+    box.innerHTML += `<p><strong>${role}:</strong> ${msg}</p>`;
+    box.scrollTop = box.scrollHeight;
+  }
+
+  // 3. Task Management (Auto-Pilot)
+  const renderTasks = async () => {
+    const data = await chrome.storage.local.get(['scheduledTasks', 'isPro']);
+    const tasks = data.scheduledTasks || [];
+    const isPro = data.isPro || false;
+
+    usageBadge.innerText = `${tasks.length}/${isPro ? '∞' : MAX_FREE_TASKS}`;
+    taskList.innerHTML = "";
+
+    tasks.forEach((task, index) => {
+      const card = document.createElement("div");
+      card.className = "task-card";
+      card.innerHTML = `
+        <span class="time">[${task.time}]</span> <strong>${task.desc}</strong>
+        <div style="font-size:9px; color:#777">Next execution: Every day</div>
+      `;
+      taskList.appendChild(card);
+    });
+  };
+
+  document.getElementById("btn-add-task").onclick = async () => {
+    const desc = document.getElementById("task-desc").value;
+    const time = document.getElementById("task-time").value;
+    
+    if (!desc || !time) return alert("Fill all fields");
+
+    const data = await chrome.storage.local.get(['scheduledTasks', 'isPro']);
+    const tasks = data.scheduledTasks || [];
+
+    if (!data.isPro && tasks.length >= MAX_FREE_TASKS) {
+      return alert("Limit reached. Upgrade to PRO for more tasks!");
+    }
+
+    tasks.push({ desc, time });
+    await chrome.storage.local.set({ scheduledTasks: tasks });
+    
+    // Set a Chrome Alarm
+    chrome.alarms.create(`task-${tasks.length}`, {
+      when: calculateNextTime(time),
+      periodInMinutes: 1440 // Daily
+    });
+
+    renderTasks();
+  };
+
+  function calculateNextTime(timeStr) {
+    const [hrs, mins] = timeStr.split(':');
+    const now = new Date();
+    const target = new Date();
+    target.setHours(hrs, mins, 0, 0);
+    if (target < now) target.setDate(target.getDate() + 1);
+    return target.getTime();
+  }
+
+  renderTasks();
 });
